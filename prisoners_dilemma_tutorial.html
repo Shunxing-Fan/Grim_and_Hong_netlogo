@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prisoner's Dilemma Tutorial</title>
+  <style>
+    :root {
+      --bg: #f5efe3;
+      --panel: rgba(255, 251, 245, 0.94);
+      --panel-strong: rgba(255, 255, 255, 0.96);
+      --ink: #182131;
+      --muted: #637083;
+      --line: rgba(24, 33, 49, 0.12);
+      --shadow: 0 22px 56px rgba(23, 29, 41, 0.12);
+      --warm: #c45231;
+      --cool: #1f6c69;
+      --gold: #d79c2a;
+      --slate: #425a74;
+      --coop-bg: #d7efe7;
+      --coop-ink: #0c6259;
+      --defect-bg: #f7ddd3;
+      --defect-ink: #9d3f26;
+      --radius-lg: 28px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      font-family: "Trebuchet MS", "Gill Sans", "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(215, 156, 42, 0.16), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(31, 108, 105, 0.12), transparent 30%),
+        linear-gradient(180deg, #f7f1e8 0%, #eee2d0 100%);
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      z-index: 0;
+      border-radius: 999px;
+      pointer-events: none;
+      filter: blur(10px);
+      opacity: 0.5;
+    }
+
+    body::before {
+      width: 280px;
+      height: 280px;
+      left: -90px;
+      top: 10%;
+      background: rgba(196, 82, 49, 0.14);
+    }
+
+    body::after {
+      width: 260px;
+      height: 260px;
+      right: -70px;
+      bottom: 6%;
+      background: rgba(31, 108, 105, 0.12);
+    }
+
+    main {
+      position: relative;
+      z-index: 1;
+      width: min(1120px, calc(100vw - 28px));
+      margin: 0 auto;
+      padding: 26px 0 52px;
+    }
+
+    .panel {
+      margin-bottom: 22px;
+      padding: 24px;
+      border-radius: var(--radius-lg);
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin: 0;
+      font-family: "Palatino Linotype", "Book Antiqua", "Georgia", serif;
+      letter-spacing: -0.02em;
+    }
+
+    h2 {
+      font-size: clamp(1.65rem, 2.8vw, 2.2rem);
+      margin-bottom: 14px;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.6;
+    }
+
+    code {
+      padding: 0.15em 0.35em;
+      border-radius: 6px;
+      background: rgba(24, 33, 49, 0.06);
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 0.94em;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .defaults-grid,
+    .strategy-grid,
+    .game-layout,
+    .lesson-layout {
+      display: grid;
+      gap: 16px;
+    }
+
+    .defaults-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin-bottom: 16px;
+    }
+
+    .default-card,
+    .strategy-card,
+    .subpanel,
+    .cell,
+    .candidate-chip {
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.84);
+    }
+
+    .default-card,
+    .strategy-card,
+    .subpanel {
+      padding: 16px;
+    }
+
+    .default-card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 1.04rem;
+    }
+
+    .default-card span {
+      color: var(--muted);
+      display: block;
+    }
+
+    .strategy-grid {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-bottom: 16px;
+    }
+
+    .strategy-card {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .strategy-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 5px;
+      background: var(--accent, var(--slate));
+    }
+
+    .strategy-card p {
+      color: var(--muted);
+    }
+
+    .payoff-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .payoff-table th,
+    .payoff-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    .payoff-table th {
+      width: 180px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .payoff-table tr:last-child th,
+    .payoff-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .game-layout {
+      grid-template-columns: 0.76fr 1.24fr;
+      align-items: start;
+    }
+
+    .picker-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    button {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      font: inherit;
+      color: inherit;
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, opacity 180ms ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 32px rgba(23, 29, 41, 0.12);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .picker-button {
+      width: 100%;
+      padding: 14px 16px;
+      text-align: left;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.92);
+      font-weight: 700;
+    }
+
+    .picker-button.active {
+      background: linear-gradient(180deg, rgba(31, 108, 105, 0.12), rgba(255, 255, 255, 0.96));
+      border-color: rgba(31, 108, 105, 0.3);
+    }
+
+    .duel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .ghost-button {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+    }
+
+    .duel-subtitle {
+      display: none;
+    }
+
+    .scoreboard {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .score-box {
+      position: relative;
+      overflow: hidden;
+      padding: 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(246, 240, 233, 0.94));
+      text-align: center;
+    }
+
+    .score-box small {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .score-value {
+      font-size: clamp(2rem, 4vw, 2.5rem);
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .score-float {
+      position: absolute;
+      right: 14px;
+      bottom: 12px;
+      padding: 5px 10px;
+      border-radius: 999px;
+      color: white;
+      font-weight: 700;
+      animation: rise 1800ms ease forwards;
+    }
+
+    .score-float.player {
+      background: var(--cool);
+    }
+
+    .score-float.opponent {
+      background: var(--warm);
+    }
+
+    @keyframes rise {
+      0% {
+        transform: translateY(0);
+        opacity: 0;
+      }
+      15% {
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-24px);
+        opacity: 0;
+      }
+    }
+
+    .round-ribbon {
+      margin-bottom: 14px;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      border: 1px dashed rgba(24, 33, 49, 0.18);
+      background: rgba(255, 255, 255, 0.72);
+      text-align: center;
+    }
+
+    .move-stage {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .actor-card {
+      padding: 18px;
+      text-align: center;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.94);
+    }
+
+    .actor-card small {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .move-token {
+      min-height: 122px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(248, 245, 240, 0.94), rgba(255, 255, 255, 0.98));
+    }
+
+    .question-mark {
+      font-family: "Palatino Linotype", "Book Antiqua", "Georgia", serif;
+      font-size: 4rem;
+      line-height: 1;
+      color: rgba(24, 33, 49, 0.34);
+      font-weight: 700;
+    }
+
+    .move-visual {
+      display: grid;
+      gap: 10px;
+      justify-items: center;
+    }
+
+    .move-badge {
+      width: 62px;
+      height: 62px;
+      border-radius: 999px;
+      display: inline-grid;
+      place-items: center;
+      font-size: 1.7rem;
+      font-weight: 800;
+      border: 3px solid currentColor;
+    }
+
+    .move-badge.small {
+      width: 24px;
+      height: 24px;
+      font-size: 0.88rem;
+      border-width: 2px;
+    }
+
+    .move-badge.cooperate {
+      color: var(--coop-ink);
+      background: var(--coop-bg);
+    }
+
+    .move-badge.defect {
+      color: var(--defect-ink);
+      background: var(--defect-bg);
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .move-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 15px 16px;
+      border-radius: 18px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .move-button.cooperate {
+      background: var(--coop-bg);
+      color: var(--coop-ink);
+      border-color: rgba(12, 98, 89, 0.14);
+    }
+
+    .move-button.defect {
+      background: var(--defect-bg);
+      color: var(--defect-ink);
+      border-color: rgba(157, 63, 38, 0.14);
+    }
+
+    .status-band {
+      min-height: 64px;
+      margin-bottom: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(249, 245, 239, 0.94));
+      color: var(--muted);
+    }
+
+    .status-band strong {
+      color: var(--ink);
+    }
+
+    .next-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 14px;
+    }
+
+    .next-button {
+      padding: 11px 16px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, rgba(24, 33, 49, 0.96), rgba(48, 58, 79, 0.98));
+      color: white;
+    }
+
+    .history-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.84);
+    }
+
+    .history-table {
+      width: 100%;
+      min-width: 540px;
+      border-collapse: collapse;
+    }
+
+    .history-table th,
+    .history-table td {
+      padding: 11px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    .history-table th {
+      color: var(--muted);
+      font-size: 0.86rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      background: rgba(245, 240, 233, 0.92);
+    }
+
+    .history-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .history-empty {
+      padding: 18px;
+      color: var(--muted);
+    }
+
+    .mini-move {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+
+    .step-buttons {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .step-button {
+      padding: 15px 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.92);
+      text-align: left;
+      font-weight: 700;
+    }
+
+    .step-button span {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+
+    .step-button.active {
+      background: linear-gradient(180deg, rgba(215, 156, 42, 0.14), rgba(255, 255, 255, 0.96));
+      border-color: rgba(215, 156, 42, 0.36);
+    }
+
+    .lesson-placeholder {
+      padding: 20px 22px;
+      border-radius: var(--radius-md);
+      border: 1px dashed rgba(24, 33, 49, 0.18);
+      background: rgba(255, 255, 255, 0.74);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .lesson-layout {
+      grid-template-columns: 0.95fr 1.15fr;
+      align-items: start;
+      display: none;
+    }
+
+    .lesson-layout.active {
+      display: grid;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .cell {
+      position: relative;
+      min-height: 136px;
+      padding: 12px;
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      overflow: hidden;
+      transition: opacity 220ms ease, transform 220ms ease, box-shadow 220ms ease, background 220ms ease;
+    }
+
+    .cell::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 5px;
+      background: var(--accent, var(--slate));
+    }
+
+    .cell.hidden-corner {
+      opacity: 0;
+      transform: scale(0.82);
+      pointer-events: none;
+    }
+
+    .cell.center {
+      box-shadow: inset 0 0 0 2px rgba(31, 108, 105, 0.24);
+    }
+
+    .cell.candidate {
+      box-shadow: inset 0 0 0 2px rgba(215, 156, 42, 0.28);
+    }
+
+    .cell.winner {
+      box-shadow: inset 0 0 0 2px rgba(196, 82, 49, 0.32);
+      background: linear-gradient(180deg, rgba(255, 247, 236, 0.98), rgba(255, 255, 255, 0.96));
+    }
+
+    .cell.copied {
+      animation: copyPulse 900ms ease;
+      background: linear-gradient(180deg, rgba(223, 242, 235, 0.98), rgba(255, 255, 255, 0.96));
+    }
+
+    @keyframes copyPulse {
+      0% {
+        transform: scale(1);
+      }
+      35% {
+        transform: scale(1.03);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    .coord {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .cell h4 {
+      font-size: 1rem;
+    }
+
+    .cell p {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.4;
+    }
+
+    .score-pill,
+    .candidate-chip,
+    .copy-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: fit-content;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(245, 240, 233, 0.92);
+      font-weight: 700;
+    }
+
+    .copy-badge {
+      background: rgba(215, 239, 231, 0.96);
+      color: var(--cool);
+    }
+
+    .detail-list,
+    .explain-list {
+      margin: 0;
+      padding-left: 22px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .detail-list li::marker,
+    .explain-list li::marker {
+      font-weight: 700;
+    }
+
+    .formula {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      border: 1px dashed rgba(24, 33, 49, 0.2);
+      background: rgba(255, 255, 255, 0.94);
+      font-weight: 700;
+    }
+
+    .candidate-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 14px 0 14px;
+    }
+
+    @media (max-width: 960px) {
+      .strategy-grid,
+      .defaults-grid,
+      .step-buttons,
+      .game-layout,
+      .lesson-layout.active {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      main {
+        width: min(100vw - 18px, 1120px);
+        padding-top: 18px;
+      }
+
+      .panel {
+        padding: 18px;
+      }
+
+      .scoreboard,
+      .move-stage,
+      .controls {
+        grid-template-columns: 1fr;
+      }
+
+      .duel-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .history-table {
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <h2>The Four Built-In Strategies</h2>
+
+      <div class="defaults-grid">
+        <article class="default-card">
+          <strong>Included strategies</strong>
+          <span>All four strategy switches are on by default.</span>
+        </article>
+        <article class="default-card">
+          <strong><code>rounds_to_play = 50</code></strong>
+          <span>Each neighbor interaction is a 50-round repeated game.</span>
+        </article>
+        <article class="default-card">
+          <strong><code>imitation_radius = 1</code></strong>
+          <span>Learning checks the patch plus the four orthogonal neighbors.</span>
+        </article>
+      </div>
+
+      <div class="strategy-grid" id="strategy-cards"></div>
+
+      <article class="subpanel">
+        <h3>Default Payoffs</h3>
+        <table class="payoff-table">
+          <tbody>
+            <tr>
+              <th><code>payoffs_cc = 3</code></th>
+              <td>Both cooperation. If both players choose <strong>C</strong>, each gets 3.</td>
+            </tr>
+            <tr>
+              <th><code>payoffs_cd = 0</code></th>
+              <td>You cooperate, the other player defects. The cooperator gets 0.</td>
+            </tr>
+            <tr>
+              <th><code>payoffs_dc = 5</code></th>
+              <td>You defect, the other player cooperates. The defector gets 5.</td>
+            </tr>
+            <tr>
+              <th><code>payoffs_dd = 1</code></th>
+              <td>Both defect. If both choose <strong>D</strong>, each gets 1.</td>
+            </tr>
+          </tbody>
+        </table>
+      </article>
+    </section>
+
+    <section class="panel">
+      <h2>Play a 10-Round Game</h2>
+
+      <div class="game-layout">
+        <article class="subpanel">
+          <h3>Choose the Opponent Strategy</h3>
+          <div class="picker-grid" id="strategy-picker"></div>
+        </article>
+
+        <article class="subpanel">
+          <div class="duel-head">
+            <div>
+              <h3 id="duel-title">No opponent selected yet</h3>
+              <p class="duel-subtitle" id="duel-subtitle"></p>
+            </div>
+            <button class="ghost-button" id="reset-duel" type="button">Reset game</button>
+          </div>
+
+          <div class="scoreboard">
+            <section class="score-box" id="player-score-box">
+              <small>You</small>
+              <div class="score-value" id="player-score">0</div>
+            </section>
+            <section class="score-box" id="opponent-score-box">
+              <small>Opponent</small>
+              <div class="score-value" id="opponent-score">0</div>
+            </section>
+          </div>
+
+          <div class="round-ribbon">
+            <strong id="round-label">Choose an opponent to begin</strong>
+          </div>
+
+          <div class="move-stage">
+            <section class="actor-card">
+              <small>You</small>
+              <div class="move-token" id="player-token"></div>
+            </section>
+            <section class="actor-card">
+              <small id="opponent-card-label">Opponent</small>
+              <div class="move-token" id="opponent-token"></div>
+            </section>
+          </div>
+
+          <div class="controls">
+            <button class="move-button cooperate" id="cooperate-button" type="button">
+              <span class="move-badge cooperate" aria-hidden="true">C</span>
+              <span>Cooperate</span>
+            </button>
+            <button class="move-button defect" id="defect-button" type="button">
+              <span class="move-badge defect" aria-hidden="true">D</span>
+              <span>Defect</span>
+            </button>
+          </div>
+
+          <div class="status-band" id="status-band"></div>
+
+          <div class="next-row">
+            <button class="next-button" id="next-round" type="button" disabled>Next round</button>
+          </div>
+
+          <div class="history-wrap">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Round</th>
+                  <th>You</th>
+                  <th>Opponent</th>
+                  <th>Your payoff</th>
+                  <th>Opponent payoff</th>
+                  <th>Running score</th>
+                </tr>
+              </thead>
+              <tbody id="history-body"></tbody>
+            </table>
+            <div class="history-empty" id="history-empty">No rounds played yet.</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>What One <code>go</code> Tick Does</h2>
+
+      <div class="step-buttons" id="step-buttons">
+        <button class="step-button" type="button" data-step="1">
+          Step 1
+          <span>Score the 8 neighbors</span>
+        </button>
+        <button class="step-button" type="button" data-step="2">
+          Step 2
+          <span>Compare North, East, South, West</span>
+        </button>
+        <button class="step-button" type="button" data-step="3">
+          Step 3
+          <span>Copy the winner's strategy</span>
+        </button>
+      </div>
+
+      <div class="lesson-placeholder" id="lesson-placeholder">Click a step.</div>
+
+      <div class="lesson-layout" id="lesson-layout">
+        <article class="subpanel">
+          <h3>3x3 Demonstration Grid</h3>
+          <div class="grid" id="demo-grid"></div>
+        </article>
+
+        <article class="subpanel">
+          <h3 id="detail-title">How Patch <code>(2,2)</code> Gets Its Score</h3>
+          <div id="detail-body"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const STRATEGIES = [
+      { id: 0, name: "Always Defect", summary: "Starts with D and never switches.", accent: "#c45231" },
+      { id: 7, name: "Always Cooperate", summary: "Starts with C and never switches.", accent: "#1f6c69" },
+      { id: 6, name: "Tit for Tat", summary: "Starts with C, then copies the opponent's previous move.", accent: "#425a74" },
+      { id: 8, name: "Grim Trigger", summary: "Starts with C and defects forever after it has seen one D.", accent: "#d79c2a" }
+    ];
+
+    const PAYOFFS = {
+      cc: 3,
+      cd: 0,
+      dc: 5,
+      dd: 1
+    };
+
+    const MODEL_DEFAULTS = {
+      roundsToPlay: 50
+    };
+
+    const SCORE_DIRECTIONS = [
+      { label: "North", row: -1, col: 0 },
+      { label: "Northeast", row: -1, col: 1 },
+      { label: "East", row: 0, col: 1 },
+      { label: "Southeast", row: 1, col: 1 },
+      { label: "South", row: 1, col: 0 },
+      { label: "Southwest", row: 1, col: -1 },
+      { label: "West", row: 0, col: -1 },
+      { label: "Northwest", row: -1, col: -1 }
+    ];
+
+    const ORTHOGONAL_DIRECTIONS = [
+      { label: "North", row: -1, col: 0 },
+      { label: "East", row: 0, col: 1 },
+      { label: "South", row: 1, col: 0 },
+      { label: "West", row: 0, col: -1 }
+    ];
+
+    const BACKING_GRID = [
+      [0, 6, 0, 6, 0, 0, 7, 6, 0],
+      [8, 7, 8, 6, 0, 6, 7, 6, 0],
+      [7, 8, 8, 8, 7, 0, 8, 8, 8],
+      [0, 6, 0, 7, 7, 0, 0, 0, 7],
+      [0, 7, 7, 8, 6, 0, 0, 6, 8],
+      [0, 7, 7, 8, 6, 0, 0, 6, 8],
+      [7, 8, 7, 7, 7, 7, 6, 7, 7],
+      [0, 6, 8, 0, 7, 7, 7, 8, 0],
+      [8, 0, 8, 8, 6, 6, 8, 0, 7]
+    ];
+
+    const DISPLAY_ORIGIN = {
+      row: 3,
+      col: 3
+    };
+
+    const gameState = {
+      strategyId: null,
+      round: 1,
+      playerScore: 0,
+      opponentScore: 0,
+      playerPrevMove: null,
+      opponentGrimTriggered: false,
+      revealed: false,
+      history: [],
+      currentRound: null
+    };
+
+    const lessonState = {
+      step: 0
+    };
+
+    const elements = {
+      strategyCards: document.getElementById("strategy-cards"),
+      strategyPicker: document.getElementById("strategy-picker"),
+      duelTitle: document.getElementById("duel-title"),
+      duelSubtitle: document.getElementById("duel-subtitle"),
+      resetDuel: document.getElementById("reset-duel"),
+      playerScore: document.getElementById("player-score"),
+      opponentScore: document.getElementById("opponent-score"),
+      playerScoreBox: document.getElementById("player-score-box"),
+      opponentScoreBox: document.getElementById("opponent-score-box"),
+      roundLabel: document.getElementById("round-label"),
+      playerToken: document.getElementById("player-token"),
+      opponentToken: document.getElementById("opponent-token"),
+      opponentCardLabel: document.getElementById("opponent-card-label"),
+      cooperateButton: document.getElementById("cooperate-button"),
+      defectButton: document.getElementById("defect-button"),
+      statusBand: document.getElementById("status-band"),
+      nextRound: document.getElementById("next-round"),
+      historyBody: document.getElementById("history-body"),
+      historyEmpty: document.getElementById("history-empty"),
+      stepButtons: document.getElementById("step-buttons"),
+      lessonPlaceholder: document.getElementById("lesson-placeholder"),
+      lessonLayout: document.getElementById("lesson-layout"),
+      demoGrid: document.getElementById("demo-grid"),
+      detailTitle: document.getElementById("detail-title"),
+      detailBody: document.getElementById("detail-body")
+    };
+
+    function strategyById(id) {
+      return STRATEGIES.find((strategy) => strategy.id === id);
+    }
+
+    function moveLabel(move) {
+      return move === 1 ? "C" : "D";
+    }
+
+    function initialMove(strategyId) {
+      return [6, 7, 8].includes(strategyId) ? 1 : 0;
+    }
+
+    function calcMyNextMove(strategyId, opponentMove, grimTriggered) {
+      if (strategyId === 8) {
+        return grimTriggered ? 0 : 1;
+      }
+      if (opponentMove === 1) {
+        return [6, 7].includes(strategyId) ? 1 : 0;
+      }
+      return strategyId === 7 ? 1 : 0;
+    }
+
+    function payoffsForRound(move1, move2) {
+      if (move1 === 1 && move2 === 1) {
+        return { player: PAYOFFS.cc, opponent: PAYOFFS.cc };
+      }
+      if (move1 === 1 && move2 === 0) {
+        return { player: PAYOFFS.cd, opponent: PAYOFFS.dc };
+      }
+      if (move1 === 0 && move2 === 1) {
+        return { player: PAYOFFS.dc, opponent: PAYOFFS.cd };
+      }
+      return { player: PAYOFFS.dd, opponent: PAYOFFS.dd };
+    }
+
+    function computeInteraction(strategy1, strategy2, rounds) {
+      let move1 = initialMove(strategy1);
+      let move2 = initialMove(strategy2);
+      let grimTriggered1 = false;
+      let grimTriggered2 = false;
+      let score1 = 0;
+      let score2 = 0;
+      const trace = [];
+
+      for (let index = 0; index < rounds; index += 1) {
+        const result = payoffsForRound(move1, move2);
+        score1 += result.player;
+        score2 += result.opponent;
+        trace.push({ move1, move2 });
+
+        if (strategy1 === 8 && move2 === 0) {
+          grimTriggered1 = true;
+        }
+        if (strategy2 === 8 && move1 === 0) {
+          grimTriggered2 = true;
+        }
+
+        const currentMove1 = move1;
+        const currentMove2 = move2;
+        move1 = calcMyNextMove(strategy1, currentMove2, grimTriggered1);
+        move2 = calcMyNextMove(strategy2, currentMove1, grimTriggered2);
+      }
+
+      return { trace, score1, score2 };
+    }
+
+    function traceGroups(trace) {
+      const groups = [];
+      trace.forEach((step) => {
+        const pair = moveLabel(step.move1) + "/" + moveLabel(step.move2);
+        const last = groups[groups.length - 1];
+        if (last && last.pair === pair) {
+          last.count += 1;
+        } else {
+          groups.push({ pair, count: 1 });
+        }
+      });
+      return groups;
+    }
+
+    function traceSentence(trace) {
+      const groups = traceGroups(trace);
+      if (groups.length === 1) {
+        return "50 rounds: " + groups[0].pair + " the whole time.";
+      }
+      if (groups.length === 2 && groups[0].count === 1) {
+        return "50 rounds: round 1 " + groups[0].pair + ", then " + groups[1].count + " rounds of " + groups[1].pair + ".";
+      }
+      return "50 rounds: " + groups.map((group) => group.count + " rounds of " + group.pair).join(", then ") + ".";
+    }
+
+    function computeBackingScores() {
+      const result = [];
+      for (let row = 1; row < BACKING_GRID.length - 1; row += 1) {
+        for (let col = 1; col < BACKING_GRID[row].length - 1; col += 1) {
+          const strategyId = BACKING_GRID[row][col];
+          const interactions = SCORE_DIRECTIONS.map((direction) => {
+            const neighborRow = row + direction.row;
+            const neighborCol = col + direction.col;
+            const neighborStrategyId = BACKING_GRID[neighborRow][neighborCol];
+            const interaction = computeInteraction(strategyId, neighborStrategyId, MODEL_DEFAULTS.roundsToPlay);
+            return {
+              label: direction.label,
+              row: neighborRow,
+              col: neighborCol,
+              neighborStrategyId,
+              score: interaction.score1,
+              trace: interaction.trace
+            };
+          });
+
+          result.push({
+            row,
+            col,
+            strategyId,
+            interactions,
+            totalScore: interactions.reduce((sum, item) => sum + item.score, 0)
+          });
+        }
+      }
+      return result;
+    }
+
+    const backingCells = computeBackingScores();
+    const backingCellMap = new Map(backingCells.map((cell) => [cell.row + "-" + cell.col, cell]));
+
+    function getDisplayCell(displayRow, displayCol) {
+      return backingCellMap.get((DISPLAY_ORIGIN.row + displayRow) + "-" + (DISPLAY_ORIGIN.col + displayCol));
+    }
+
+    function coordLabel(displayRow, displayCol) {
+      return "(" + (displayRow + 1) + "," + (displayCol + 1) + ")";
+    }
+
+    function moveBadge(move, small) {
+      const className = move === 1 ? "cooperate" : "defect";
+      const label = move === 1 ? "C" : "D";
+      return "<span class=\"move-badge " + className + (small ? " small" : "") + "\">" + label + "</span>";
+    }
+
+    function moveMarkup(move, compact) {
+      if (compact) {
+        return "<span class=\"mini-move\">" + moveBadge(move, true) + "<span>" + moveLabel(move) + "</span></span>";
+      }
+      return "<div class=\"move-visual\">" + moveBadge(move, false) + "<strong>" + (move === 1 ? "Cooperate" : "Defect") + "</strong></div>";
+    }
+
+    function hiddenMarkup(label) {
+      return label ? "<div class=\"question-mark\" style=\"font-size: 2rem;\">Pick</div>" : "<div class=\"question-mark\">?</div>";
+    }
+
+    function renderStrategyCards() {
+      elements.strategyCards.innerHTML = STRATEGIES.map((strategy) => {
+        return (
+          "<article class=\"strategy-card\" style=\"--accent: " + strategy.accent + "\">" +
+            "<h3>" + strategy.name + "</h3>" +
+            "<p>" + strategy.summary + "</p>" +
+          "</article>"
+        );
+      }).join("");
+    }
+
+    function renderStrategyPicker() {
+      elements.strategyPicker.innerHTML = STRATEGIES.map((strategy) => {
+        const activeClass = gameState.strategyId === strategy.id ? " active" : "";
+        return (
+          "<button class=\"picker-button" + activeClass + "\" type=\"button\" data-strategy-id=\"" + strategy.id + "\">" +
+            strategy.name +
+          "</button>"
+        );
+      }).join("");
+
+      elements.strategyPicker.querySelectorAll("[data-strategy-id]").forEach((button) => {
+        button.addEventListener("click", () => startGame(Number(button.dataset.strategyId)));
+      });
+    }
+
+    function nextOpponentMove() {
+      if (gameState.round === 1) {
+        return initialMove(gameState.strategyId);
+      }
+      return calcMyNextMove(gameState.strategyId, gameState.playerPrevMove, gameState.opponentGrimTriggered);
+    }
+
+    function opponentReasoning(strategyId, round, playerPrevMove, grimTriggeredBeforeRound, playerMoveNow) {
+      if (round === 1) {
+        return "Round 1 follows the strategy's opening move.";
+      }
+      if (strategyId === 0) {
+        return "Always Defect stays with D.";
+      }
+      if (strategyId === 7) {
+        return "Always Cooperate stays with C.";
+      }
+      if (strategyId === 6) {
+        return "Tit for Tat copied your previous move.";
+      }
+      if (grimTriggeredBeforeRound) {
+        return "Grim Trigger had already seen a D, so it stayed with D.";
+      }
+      if (playerMoveNow === 0) {
+        return "Grim Trigger was still on C here, but your D will trigger D next round.";
+      }
+      return "Grim Trigger has not seen a D yet, so it stayed with C.";
+    }
+
+    function startGame(strategyId) {
+      gameState.strategyId = strategyId;
+      gameState.round = 1;
+      gameState.playerScore = 0;
+      gameState.opponentScore = 0;
+      gameState.playerPrevMove = null;
+      gameState.opponentGrimTriggered = false;
+      gameState.revealed = false;
+      gameState.history = [];
+      gameState.currentRound = null;
+      renderStrategyPicker();
+      renderGame();
+    }
+
+    function resetGame() {
+      if (gameState.strategyId === null) {
+        renderGame();
+        return;
+      }
+      startGame(gameState.strategyId);
+    }
+
+    function spawnScoreFloat(box, value, role) {
+      const bubble = document.createElement("div");
+      bubble.className = "score-float " + role;
+      bubble.textContent = "+" + value;
+      box.appendChild(bubble);
+      bubble.addEventListener("animationend", () => bubble.remove());
+    }
+
+    function playRound(playerMove) {
+      if (gameState.strategyId === null || gameState.revealed || gameState.round > 10) {
+        return;
+      }
+
+      const opponentMove = nextOpponentMove();
+      const result = payoffsForRound(playerMove, opponentMove);
+      const grimTriggeredBeforeRound = gameState.opponentGrimTriggered;
+
+      gameState.playerScore += result.player;
+      gameState.opponentScore += result.opponent;
+      gameState.currentRound = {
+        round: gameState.round,
+        playerMove,
+        opponentMove,
+        playerGain: result.player,
+        opponentGain: result.opponent,
+        playerTotal: gameState.playerScore,
+        opponentTotal: gameState.opponentScore,
+        explanation: opponentReasoning(gameState.strategyId, gameState.round, gameState.playerPrevMove, grimTriggeredBeforeRound, playerMove)
+      };
+
+      gameState.history.push(gameState.currentRound);
+      gameState.revealed = true;
+      gameState.playerPrevMove = playerMove;
+
+      if (gameState.strategyId === 8 && playerMove === 0) {
+        gameState.opponentGrimTriggered = true;
+      }
+
+      spawnScoreFloat(elements.playerScoreBox, result.player, "player");
+      spawnScoreFloat(elements.opponentScoreBox, result.opponent, "opponent");
+      renderGame();
+    }
+
+    function advanceRound() {
+      if (!gameState.revealed) {
+        return;
+      }
+      if (gameState.round >= 10) {
+        startGame(gameState.strategyId);
+        return;
+      }
+      gameState.round += 1;
+      gameState.revealed = false;
+      gameState.currentRound = null;
+      renderGame();
+    }
+
+    function renderHistory() {
+      if (gameState.history.length === 0) {
+        elements.historyBody.innerHTML = "";
+        elements.historyEmpty.style.display = "block";
+        return;
+      }
+
+      elements.historyEmpty.style.display = "none";
+      elements.historyBody.innerHTML = gameState.history.map((round) => {
+        return (
+          "<tr>" +
+            "<td>" + round.round + "</td>" +
+            "<td>" + moveMarkup(round.playerMove, true) + "</td>" +
+            "<td>" + moveMarkup(round.opponentMove, true) + "</td>" +
+            "<td>+" + round.playerGain + "</td>" +
+            "<td>+" + round.opponentGain + "</td>" +
+            "<td>" + round.playerTotal + " / " + round.opponentTotal + "</td>" +
+          "</tr>"
+        );
+      }).join("");
+    }
+
+    function renderGame() {
+      const strategy = strategyById(gameState.strategyId);
+      const selected = Boolean(strategy);
+      const duelFinished = gameState.round === 10 && gameState.revealed;
+      const canPlay = selected && !gameState.revealed && gameState.round <= 10;
+
+      elements.playerScore.textContent = String(gameState.playerScore);
+      elements.opponentScore.textContent = String(gameState.opponentScore);
+      elements.cooperateButton.disabled = !canPlay;
+      elements.defectButton.disabled = !canPlay;
+      elements.nextRound.disabled = !gameState.revealed;
+      elements.nextRound.textContent = duelFinished ? "Restart game" : "Next round";
+
+      if (!selected) {
+        elements.duelTitle.textContent = "No opponent selected yet";
+        elements.roundLabel.textContent = "Choose an opponent to begin";
+        elements.opponentCardLabel.textContent = "Opponent";
+        elements.playerToken.innerHTML = hiddenMarkup(true);
+        elements.opponentToken.innerHTML = hiddenMarkup(false);
+        elements.statusBand.innerHTML = "<strong>Waiting.</strong> Choose an opponent strategy first.";
+        renderHistory();
+        return;
+      }
+
+      elements.duelTitle.textContent = "Opponent: " + strategy.name;
+      elements.opponentCardLabel.textContent = "Opponent";
+
+      if (gameState.revealed && gameState.currentRound) {
+        elements.roundLabel.textContent = duelFinished ? "Round 10 of 10" : "Round " + gameState.currentRound.round + " of 10";
+        elements.playerToken.innerHTML = moveMarkup(gameState.currentRound.playerMove, false);
+        elements.opponentToken.innerHTML = moveMarkup(gameState.currentRound.opponentMove, false);
+        elements.statusBand.innerHTML =
+          "<strong>Reveal:</strong> You played " + moveLabel(gameState.currentRound.playerMove) +
+          ", opponent played " + moveLabel(gameState.currentRound.opponentMove) +
+          ". Payoff: +" + gameState.currentRound.playerGain + " / +" + gameState.currentRound.opponentGain +
+          ". " + gameState.currentRound.explanation;
+      } else {
+        elements.roundLabel.textContent = "Round " + gameState.round + " of 10";
+        elements.playerToken.innerHTML = hiddenMarkup(true);
+        elements.opponentToken.innerHTML = hiddenMarkup(false);
+        elements.statusBand.innerHTML = "<strong>Pick your move.</strong> The opponent stays hidden until you click.";
+      }
+
+      renderHistory();
+    }
+
+    function winnerDisplayCell() {
+      const candidates = ORTHOGONAL_DIRECTIONS.map((direction) => {
+        return getDisplayCell(1 + direction.row, 1 + direction.col);
+      });
+      return candidates.reduce((best, current) => {
+        return current.totalScore > best.totalScore ? current : best;
+      }, candidates[0]);
+    }
+
+    function renderGrid(step) {
+      const winnerCell = winnerDisplayCell();
+      elements.demoGrid.innerHTML = "";
+
+      for (let displayRow = 0; displayRow < 3; displayRow += 1) {
+        for (let displayCol = 0; displayCol < 3; displayCol += 1) {
+          const backingCell = getDisplayCell(displayRow, displayCol);
+          const isCenter = displayRow === 1 && displayCol === 1;
+          const isCorner = (displayRow !== 1) && (displayCol !== 1);
+          const isOrthogonal = !isCenter && !isCorner;
+          const shouldHideCorner = step >= 2 && isCorner;
+          const isWinner = step >= 2 && backingCell.row === winnerCell.row && backingCell.col === winnerCell.col;
+          const classes = ["cell"];
+
+          if (isCenter) {
+            classes.push("center");
+          }
+          if (step >= 2 && isOrthogonal) {
+            classes.push("candidate");
+          }
+          if (isWinner) {
+            classes.push("winner");
+          }
+          if (shouldHideCorner) {
+            classes.push("hidden-corner");
+          }
+          if (step === 3 && isCenter) {
+            classes.push("copied");
+          }
+
+          const shownStrategy = (step === 3 && isCenter) ? strategyById(winnerCell.strategyId) : strategyById(backingCell.strategyId);
+          const card = document.createElement("article");
+          card.className = classes.join(" ");
+          card.style.setProperty("--accent", shownStrategy.accent);
+
+          let extraBadge = "";
+          if (step === 3 && isCenter) {
+            const winnerDisplayRow = winnerCell.row - DISPLAY_ORIGIN.row;
+            const winnerDisplayCol = winnerCell.col - DISPLAY_ORIGIN.col;
+            extraBadge = "<div class=\"copy-badge\">copied from " + coordLabel(winnerDisplayRow, winnerDisplayCol) + "</div>";
+          }
+
+          card.innerHTML =
+            "<div class=\"coord\">" + coordLabel(displayRow, displayCol) + "</div>" +
+            "<h4>" + shownStrategy.name + "</h4>" +
+            "<div class=\"score-pill\">" + backingCell.totalScore + "</div>" +
+            extraBadge;
+
+          elements.demoGrid.appendChild(card);
+        }
+      }
+    }
+
+    function renderStepOne() {
+      const center = getDisplayCell(1, 1);
+      const formula = center.interactions.map((interaction) => interaction.score).join(" + ") + " = " + center.totalScore;
+
+      elements.detailTitle.innerHTML = "How Patch <code>(2,2)</code> Gets Its Score";
+      elements.detailBody.innerHTML =
+        "<ol class=\"detail-list\">" +
+        center.interactions.map((interaction) => {
+          const neighborDisplayRow = interaction.row - DISPLAY_ORIGIN.row;
+          const neighborDisplayCol = interaction.col - DISPLAY_ORIGIN.col;
+          const neighborStrategy = strategyById(interaction.neighborStrategyId);
+          return (
+            "<li><strong>" + interaction.label + " " + coordLabel(neighborDisplayRow, neighborDisplayCol) + "</strong> | " +
+            neighborStrategy.name + " | +" + interaction.score +
+            "<br><span class=\"muted\">" + traceSentence(interaction.trace) + "</span></li>"
+          );
+        }).join("") +
+        "</ol>" +
+        "<div class=\"formula\">" + formula + "</div>";
+    }
+
+    function renderStepTwo() {
+      const center = getDisplayCell(1, 1);
+      const candidates = ORTHOGONAL_DIRECTIONS.map((direction) => {
+        const row = 1 + direction.row;
+        const col = 1 + direction.col;
+        const cell = getDisplayCell(row, col);
+        return {
+          label: direction.label,
+          displayRow: row,
+          displayCol: col,
+          cell
+        };
+      });
+
+      const winner = candidates.reduce((best, current) => {
+        return current.cell.totalScore > best.cell.totalScore ? current : best;
+      }, candidates[0]);
+
+      elements.detailTitle.innerHTML = "How Step 2 Compares Neighbors";
+      elements.detailBody.innerHTML =
+        "<p class=\"muted\">With default <code>imitation_radius = 1</code>, the center compares itself with North, East, South, and West. The corners disappear because they are not part of this learning check.</p>" +
+        "<div class=\"candidate-row\">" +
+        candidates.map((candidate) => {
+          const prefix = candidate.label === winner.label ? "best: " : "";
+          return "<div class=\"candidate-chip\">" + prefix + candidate.label + " " + coordLabel(candidate.displayRow, candidate.displayCol) + " = " + candidate.cell.totalScore + "</div>";
+        }).join("") +
+        "</div>" +
+        "<ol class=\"explain-list\">" +
+          "<li>The center patch has score <strong>" + center.totalScore + "</strong>.</li>" +
+          "<li>The highest orthogonal neighbor is <strong>" + winner.label + " " + coordLabel(winner.displayRow, winner.displayCol) + "</strong> with score <strong>" + winner.cell.totalScore + "</strong>.</li>" +
+        "</ol>";
+    }
+
+    function renderStepThree() {
+      const center = getDisplayCell(1, 1);
+      const winner = getDisplayCell(1, 0);
+      const winnerStrategy = strategyById(winner.strategyId);
+      const centerStrategy = strategyById(center.strategyId);
+
+      elements.detailTitle.innerHTML = "How Step 3 Copies the Strategy";
+      elements.detailBody.innerHTML =
+        "<div class=\"candidate-row\">" +
+          "<div class=\"candidate-chip\">center: " + centerStrategy.name + " | " + center.totalScore + "</div>" +
+          "<div class=\"candidate-chip\">winner: " + winnerStrategy.name + " | " + winner.totalScore + "</div>" +
+        "</div>" +
+        "<ol class=\"explain-list\">" +
+          "<li><code>(2,2)</code> starts this tick as <strong>" + centerStrategy.name + "</strong>.</li>" +
+          "<li>Because <strong>" + center.totalScore + " &lt; " + winner.totalScore + "</strong>, it sets <code>new_strategy</code> to the winner's strategy.</li>" +
+          "<li>Then NetLogo runs <code>set strategy new_strategy</code>, so the center changes to <strong>" + winnerStrategy.name + "</strong>.</li>" +
+        "</ol>";
+    }
+
+    function renderLesson() {
+      const step = lessonState.step;
+      elements.stepButtons.querySelectorAll("[data-step]").forEach((button) => {
+        button.classList.toggle("active", Number(button.dataset.step) === step);
+      });
+
+      if (step === 0) {
+        elements.lessonPlaceholder.style.display = "block";
+        elements.lessonLayout.classList.remove("active");
+        return;
+      }
+
+      elements.lessonPlaceholder.style.display = "none";
+      elements.lessonLayout.classList.add("active");
+      renderGrid(step);
+
+      if (step === 1) {
+        renderStepOne();
+      } else if (step === 2) {
+        renderStepTwo();
+      } else {
+        renderStepThree();
+      }
+    }
+
+    function initStepButtons() {
+      elements.stepButtons.querySelectorAll("[data-step]").forEach((button) => {
+        button.addEventListener("click", () => {
+          lessonState.step = Number(button.dataset.step);
+          renderLesson();
+        });
+      });
+    }
+
+    function init() {
+      renderStrategyCards();
+      renderStrategyPicker();
+      renderGame();
+      renderLesson();
+      initStepButtons();
+
+      elements.cooperateButton.addEventListener("click", () => playRound(1));
+      elements.defectButton.addEventListener("click", () => playRound(0));
+      elements.nextRound.addEventListener("click", advanceRound);
+      elements.resetDuel.addEventListener("click", resetGame);
+    }
+
+    init();
+  </script>
+</body>
+</html>
